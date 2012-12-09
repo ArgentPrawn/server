@@ -1528,7 +1528,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         {
             SetSemaphoreTeleportNear(true);
             //lets save teleport destination for player
-            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleport_dest = WorldLocation(mapid, x, y, z+1.0f, orientation); // HORK
             m_teleport_options = options;
             return true;
         }
