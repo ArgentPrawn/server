@@ -34,6 +34,7 @@
 #include "SpellMgr.h"
 #include "PoolManager.h"
 #include "GameEventMgr.h"
+#include "AuctionHouseBot/AuctionHouseBot.h"
 
 // Supported shift-links (client generated and server side)
 // |color|Harea:area_id|h[name]|h|r
@@ -81,11 +82,50 @@ ChatCommand * ChatHandler::getCommandTable()
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
 
+    static ChatCommand ahbotItemsAmountCommandTable[] =
+    {
+        { "grey",           SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_GREY>,  "", NULL },
+        { "white",          SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_WHITE>, "", NULL },
+        { "green",          SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_GREEN>, "", NULL },
+        { "blue",           SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_BLUE>,  "", NULL },
+        { "purple",         SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_PURPLE>, "", NULL },
+        { "orange",         SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_ORANGE>, "", NULL },
+        { "yellow",         SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountQualityCommand<AUCTION_QUALITY_YELLOW>, "", NULL },
+        { "",               SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsAmountCommand,      "", NULL },
+        { NULL,             0,                  true,  NULL,                                             "", NULL }
+    };
+
+    static ChatCommand ahbotItemsRatioCommandTable[] =
+    {
+        { "alliance",       SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsRatioHouseCommand<AUCTION_HOUSE_ALLIANCE>,  "", NULL },
+        { "horde",          SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsRatioHouseCommand<AUCTION_HOUSE_HORDE>,     "", NULL },
+        { "neutral",        SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsRatioHouseCommand<AUCTION_HOUSE_NEUTRAL>,   "", NULL },
+        { "",               SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotItemsRatioCommand,      "", NULL },
+        { NULL,             0,                  true,  NULL,                                             "", NULL }
+    };
+
+    static ChatCommand ahbotItemsCommandTable[] =
+    {
+        { "amount",         SEC_ADMINISTRATOR,  true,  NULL,                                           "", ahbotItemsAmountCommandTable},
+        { "ratio",          SEC_ADMINISTRATOR,  true,  NULL,                                           "", ahbotItemsRatioCommandTable},
+        { NULL,             0,                  true,  NULL,                                           "", NULL }
+    };
+
+    static ChatCommand ahbotCommandTable[] =
+    {
+        { "items",          SEC_ADMINISTRATOR,  true,  NULL,                                           "", ahbotItemsCommandTable},
+        { "rebuild",        SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotRebuildCommand,        "", NULL },
+        { "reload",         SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotReloadCommand,         "", NULL },
+        { "status",         SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAHBotStatusCommand,         "", NULL },
+        { NULL,             0,                  true,  NULL,                                           "", NULL }
+    };
+
     static ChatCommand auctionCommandTable[] =
     {
         { "alliance",       SEC_ADMINISTRATOR,  false, &ChatHandler::HandleAuctionAllianceCommand,     "", NULL },
         { "goblin",         SEC_ADMINISTRATOR,  false, &ChatHandler::HandleAuctionGoblinCommand,       "", NULL },
         { "horde",          SEC_ADMINISTRATOR,  false, &ChatHandler::HandleAuctionHordeCommand,        "", NULL },
+        { "item",           SEC_ADMINISTRATOR,  true,  &ChatHandler::HandleAuctionItemCommand,         "", NULL },
         { "",               SEC_ADMINISTRATOR,  false, &ChatHandler::HandleAuctionCommand,             "", NULL },
         { NULL,             0,                  false, NULL,                                           "", NULL }
     };
@@ -622,6 +662,7 @@ ChatCommand * ChatHandler::getCommandTable()
     {
         { "account",        SEC_PLAYER,         true,  NULL,                                           "", accountCommandTable  },
         { "auction",        SEC_ADMINISTRATOR,  false, NULL,                                           "", auctionCommandTable  },
+        { "ahbot",          SEC_ADMINISTRATOR,  true,  NULL,                                           "", ahbotCommandTable    },
         { "cast",           SEC_ADMINISTRATOR,  false, NULL,                                           "", castCommandTable     },
         { "character",      SEC_GAMEMASTER,     true,  NULL,                                           "", characterCommandTable},
         { "debug",          SEC_MODERATOR,      true,  NULL,                                           "", debugCommandTable    },
@@ -781,7 +822,7 @@ bool ChatHandler::HasLowerSecurity(Player* target, ObjectGuid guid, bool strong)
 
     if (target)
         target_session = target->GetSession();
-    else if (guid)
+    else
         target_account = sObjectMgr.GetPlayerAccountIdByGUID(guid);
 
     if (!target_session && !target_account)
@@ -1383,12 +1424,13 @@ bool ChatHandler::isValidChatMessage(const char* message)
     std::istringstream reader(message);
     char buffer[256];
 
-    uint32 color;
+    uint32 color = 0;
 
-    ItemPrototype const* linkedItem;
-    Quest const* linkedQuest;
-    SpellEntry const *linkedSpell;
-    ItemRandomPropertiesEntry const* itemProperty;
+    ItemPrototype const* linkedItem = NULL;
+    Quest const* linkedQuest = NULL;
+    SpellEntry const* linkedSpell = NULL;
+    ItemRandomPropertiesEntry const* itemProperty = NULL;
+//    ItemRandomSuffixEntry const* itemSuffix = NULL;
 
     while (!reader.eof())
     {
@@ -1398,6 +1440,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
             linkedQuest = NULL;
             linkedSpell = NULL;
             itemProperty = NULL;
+//            itemSuffix = NULL;
 
             reader.ignore(255, '|');
         }
@@ -1449,7 +1492,7 @@ bool ChatHandler::isValidChatMessage(const char* message)
             case 'c':
                 color = 0;
                 // validate color, expect 8 hex chars
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 8; ++i)
                 {
                     char c;
                     reader >> c;
@@ -1536,6 +1579,12 @@ bool ChatHandler::isValidChatMessage(const char* message)
                         if (!itemProperty)
                             return false;
                     }
+//                    else if (propertyId < 0)
+//                    {
+//                        itemSuffix = sItemRandomSuffixStore.LookupEntry(-propertyId);
+//                        if (!itemSuffix)
+//                            return false;
+//                    }
 
                     // ignore other integers
                     while ((c >= '0' && c <= '9') || c == ':')
@@ -1761,11 +1810,18 @@ bool ChatHandler::isValidChatMessage(const char* message)
                     }
                     else if (linkedItem)
                     {
+//                        char* const* suffix = itemSuffix ? itemSuffix->nameSuffix : (itemProperty ? itemProperty->nameSuffix : NULL);
+
                         std::string expectedName = std::string(linkedItem->Name1);
+//                        if (suffix)
+//                        {
+//                            expectedName += " ";
+//                            expectedName += suffix[LOCALE_enUS];
+//                        }
 
                         if (expectedName != buffer)
                         {
-                            ItemLocale const *il = sObjectMgr.GetItemLocale(linkedItem->ItemId);
+                            ItemLocale const* il = sObjectMgr.GetItemLocale(linkedItem->ItemId);
 
                             bool foundName = false;
                             for (uint8 i = LOCALE_koKR; i < MAX_LOCALE; ++i)
@@ -1776,7 +1832,11 @@ bool ChatHandler::isValidChatMessage(const char* message)
                                     expectedName = linkedItem->Name1;
                                 else
                                     expectedName = il->Name[dbIndex];
-
+//                                if (suffix)
+//                                {
+//                                    expectedName += " ";
+//                                    expectedName += suffix[i];
+//                                }
                                 if (expectedName == buffer)
                                 {
                                     foundName = true;
@@ -1825,12 +1885,6 @@ void ChatHandler::FillMessageData(WorldPacket *data, WorldSession* session, uint
     else
         *data << uint32(LANG_UNIVERSAL);
 
-    if (type == CHAT_MSG_CHANNEL)
-    {
-        MANGOS_ASSERT(channelName);
-        *data << channelName;
-    }
-
     switch (type)
     {
         case CHAT_MSG_SAY:
@@ -1859,6 +1913,7 @@ void ChatHandler::FillMessageData(WorldPacket *data, WorldSession* session, uint
         case CHAT_MSG_RAID_BOSS_EMOTE:
         {
             *data << ObjectGuid(speaker->GetObjectGuid());
+            *data << uint32(0);                             // 2.1.0
             *data << uint32(strlen(speaker->GetName()) + 1);
             *data << speaker->GetName();
             ObjectGuid listener_guid;
@@ -1880,8 +1935,15 @@ void ChatHandler::FillMessageData(WorldPacket *data, WorldSession* session, uint
     }
 
     *data << ObjectGuid(targetGuid);                        // there 0 for BG messages
-    if (type == CHAT_MSG_SAY || type == CHAT_MSG_YELL || type == CHAT_MSG_PARTY)
-        *data << ObjectGuid(targetGuid);
+    *data << uint32(0);                                     // can be chat msg group or something
+
+    if (type == CHAT_MSG_CHANNEL)
+    {
+        MANGOS_ASSERT(channelName);
+        *data << channelName;
+    }
+
+    *data << ObjectGuid(targetGuid);
     *data << uint32(messageLength);
     *data << message;
     if (session != 0 && type != CHAT_MSG_REPLY && type != CHAT_MSG_DND && type != CHAT_MSG_AFK)
@@ -2123,6 +2185,14 @@ char* ChatHandler::ExtractLiteralArg(char** args, char const* lit /*= NULL*/)
     if (lit)
     {
         int l = strlen(lit);
+
+        int largs = 0;
+        while (head[largs] && !isWhiteSpace(head[largs]))
+            ++largs;
+
+        if (largs < l)
+            l = largs;
+
         int diff = strncmp(head, lit, l);
 
         if (diff != 0)

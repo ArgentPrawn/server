@@ -232,8 +232,10 @@ public:
     void SendAuctionBidderNotification(AuctionEntry *auction, bool won);
     void SendAuctionOwnerNotification(AuctionEntry *auction, bool sold);
     void SendAuctionRemovedNotification(AuctionEntry* auction);
-    void SendAuctionOutbiddedMail(AuctionEntry *auction);
+    static void SendAuctionOutbiddedMail(AuctionEntry *auction);
     void SendAuctionCancelledToBidderMail(AuctionEntry *auction);
+    void BuildListAuctionItems(std::vector<AuctionEntry*> const& auctions, WorldPacket& data, std::wstring const& searchedname, uint32 listfrom, uint32 levelmin,
+                               uint32 levelmax, uint32 usable, uint32 inventoryType, uint32 itemClass, uint32 itemSubClass, uint32 quality, uint32& count, uint32& totalcount, bool isFull);
     AuctionHouseEntry const* GetCheckedAuctionHouseForAuctioneer(ObjectGuid guid);
 
     //Item Enchantment
@@ -674,3 +676,4 @@ private:
 };
 #endif
 /// @}
+

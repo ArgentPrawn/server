@@ -142,9 +142,20 @@ protected:
     bool HandleAccountSetGmLevelCommand(char* args);
     bool HandleAccountSetPasswordCommand(char* args);
 
+    bool HandleAHBotItemsAmountCommand(char* args);
+    template <int Q>
+    bool HandleAHBotItemsAmountQualityCommand(char* args);
+    bool HandleAHBotItemsRatioCommand(char* args);
+    template <int H>
+    bool HandleAHBotItemsRatioHouseCommand(char* args);
+    bool HandleAHBotRebuildCommand(char* args);
+    bool HandleAHBotReloadCommand(char* args);
+    bool HandleAHBotStatusCommand(char* args);
+
     bool HandleAuctionAllianceCommand(char* args);
     bool HandleAuctionGoblinCommand(char* args);
     bool HandleAuctionHordeCommand(char* args);
+    bool HandleAuctionItemCommand(char* args);
     bool HandleAuctionCommand(char* args);
 
     bool HandleBanAccountCommand(char* args);
