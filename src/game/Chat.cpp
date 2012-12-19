@@ -1913,7 +1913,7 @@ void ChatHandler::FillMessageData(WorldPacket *data, WorldSession* session, uint
         case CHAT_MSG_RAID_BOSS_EMOTE:
         {
             *data << ObjectGuid(speaker->GetObjectGuid());
-            *data << uint32(0);                             // 2.1.0
+//            *data << uint32(0);                             // 2.1.0
             *data << uint32(strlen(speaker->GetName()) + 1);
             *data << speaker->GetName();
             ObjectGuid listener_guid;
@@ -1935,15 +1935,8 @@ void ChatHandler::FillMessageData(WorldPacket *data, WorldSession* session, uint
     }
 
     *data << ObjectGuid(targetGuid);                        // there 0 for BG messages
-    *data << uint32(0);                                     // can be chat msg group or something
-
-    if (type == CHAT_MSG_CHANNEL)
-    {
-        MANGOS_ASSERT(channelName);
-        *data << channelName;
-    }
-
-    *data << ObjectGuid(targetGuid);
+    if (type == CHAT_MSG_SAY || type == CHAT_MSG_YELL || type == CHAT_MSG_PARTY)
+        *data << ObjectGuid(targetGuid);
     *data << uint32(messageLength);
     *data << message;
     if (session != 0 && type != CHAT_MSG_REPLY && type != CHAT_MSG_DND && type != CHAT_MSG_AFK)

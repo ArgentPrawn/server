@@ -106,7 +106,14 @@ void WorldSession::SendAuctionBidderNotification(AuctionEntry* auction, bool won
     data << uint32(won ? 0 : auction->bid);
     data << uint32(auction->GetAuctionOutBid());            // AuctionOutBid?
     data << uint32(auction->itemTemplate);
-    data << int32(auction->itemRandomPropertyId);
+
+//    data << int32(auction->itemRandomPropertyId);
+
+    Item *item = sAuctionMgr.GetAItem(auction->itemGuidLow);
+    uint32 randomId = item ? item->GetItemRandomPropertyId() : 0;
+
+    data << uint32(randomId);                               // random property (value > 0) or suffix (value < 0)
+
 
     SendPacket(&data);
 }
@@ -127,7 +134,11 @@ void WorldSession::SendAuctionOwnerNotification(AuctionEntry* auction, bool sold
     // if bidder!=0 client updates auctions with new bid, outbid and bidderGuid
     data << bidder_guid;                                    // bidder guid
     data << uint32(auction->itemTemplate);                  // item entry
-    data << uint32(auction->itemRandomPropertyId);
+//    data << uint32(auction->itemRandomPropertyId);
+    Item *item = sAuctionMgr.GetAItem(auction->itemGuidLow);
+    uint32 randomId = item ? item->GetItemRandomPropertyId() : 0;
+
+    data << uint32(randomId);                               // random property (value > 0) or suffix (value < 0)
 
     SendPacket(&data);
 }
@@ -138,7 +149,12 @@ void WorldSession::SendAuctionRemovedNotification(AuctionEntry* auction)
     WorldPacket data(SMSG_AUCTION_REMOVED_NOTIFICATION, (3 * 4));
     data << uint32(auction->Id);
     data << uint32(auction->itemTemplate);
-    data << uint32(auction->itemRandomPropertyId);
+//    data << uint32(auction->itemRandomPropertyId);
+
+    Item *item = sAuctionMgr.GetAItem(auction->itemGuidLow);
+    uint32 randomId = item ? item->GetItemRandomPropertyId() : 0;
+
+    data << uint32(randomId);                               // random property (value > 0) or suffix (value < 0)
 
     SendPacket(&data);
 }
@@ -157,7 +173,7 @@ void WorldSession::SendAuctionOutbiddedMail(AuctionEntry* auction)
     if (oldBidder || oldBidder_accId)
     {
         std::ostringstream msgAuctionOutbiddedSubject;
-        msgAuctionOutbiddedSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_OUTBIDDED;
+        msgAuctionOutbiddedSubject << auction->itemTemplate << ":0:" << AUCTION_OUTBIDDED;
 
         if (oldBidder)
             oldBidder->GetSession()->SendAuctionBidderNotification(auction, false);
@@ -182,7 +198,7 @@ void WorldSession::SendAuctionCancelledToBidderMail(AuctionEntry* auction)
     if (bidder || bidder_accId)
     {
         std::ostringstream msgAuctionCancelledSubject;
-        msgAuctionCancelledSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_CANCELLED_TO_BIDDER;
+        msgAuctionCancelledSubject << auction->itemTemplate << ":0:" << AUCTION_CANCELLED_TO_BIDDER;
 
         if (bidder)
             bidder->GetSession()->SendAuctionRemovedNotification(auction);
@@ -239,32 +255,37 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
     recv_data >> bid;
     recv_data >> buyout;
     recv_data >> etime;
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 2");
 
     if (!bid || !etime)
         return;                                             // check for cheaters
 
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 3");
     Player* pl = GetPlayer();
 
     AuctionHouseEntry const* auctionHouseEntry = GetCheckedAuctionHouseForAuctioneer(auctioneerGuid);
     if (!auctionHouseEntry)
         return;
 
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 4");
     // always return pointer
     AuctionHouseObject* auctionHouse = sAuctionMgr.GetAuctionsMap(auctionHouseEntry);
 
     // client send time in minutes, convert to common used sec time
     etime *= MINUTE;
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 5");
 
     // client understand only 3 auction time
     switch (etime)
     {
         case 1*MIN_AUCTION_TIME:
-        case 2*MIN_AUCTION_TIME:
         case 4*MIN_AUCTION_TIME:
+        case 12*MIN_AUCTION_TIME:
             break;
         default:
             return;
     }
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 6");
 
     // remove fake death
     if (GetPlayer()->hasUnitState(UNIT_STAT_DIED))
@@ -282,6 +303,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
         SendAuctionCommandResult(NULL, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
         return;
     }
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 7");
 
     // prevent sending bag with items (cheat: can be placed in bag after adding equipped empty bag to auction)
     if (!it)
@@ -301,6 +323,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
         SendAuctionCommandResult(NULL, AUCTION_STARTED, AUCTION_ERR_INVENTORY, EQUIP_ERR_ITEM_NOT_FOUND);
         return;
     }
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 8");
 
     // check money for deposit
     uint32 deposit = AuctionHouseMgr::GetAuctionDeposit(auctionHouseEntry, etime, it);
@@ -315,6 +338,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recv_data)
         sLog.outCommand(GetAccountId(), "GM %s (Account: %u) create auction: %s (Entry: %u Count: %u)",
                         GetPlayerName(), GetAccountId(), it->GetProto()->Name1, it->GetEntry(), it->GetCount());
     }
+    DEBUG_LOG("WORLD: HandleAuctionSellItem 9");
 
     pl->ModifyMoney(-int32(deposit));
 
@@ -628,8 +652,8 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recv_data)
     if (GetPlayer()->hasUnitState(UNIT_STAT_DIED))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
-    // DEBUG_LOG("Auctionhouse search %s list from: %u, searchedname: %s, levelmin: %u, levelmax: %u, auctionSlotID: %u, auctionMainCategory: %u, auctionSubCategory: %u, quality: %u, usable: %u",
-    //  auctioneerGuid.GetString().c_str(), listfrom, searchedname.c_str(), levelmin, levelmax, auctionSlotID, auctionMainCategory, auctionSubCategory, quality, usable);
+     DEBUG_LOG("Auctionhouse search %s list from: %u, searchedname: %s, levelmin: %u, levelmax: %u, auctionSlotID: %u, auctionMainCategory: %u, auctionSubCategory: %u, quality: %u, usable: %u",
+      auctioneerGuid.GetString().c_str(), listfrom, searchedname.c_str(), levelmin, levelmax, auctionSlotID, auctionMainCategory, auctionSubCategory, quality, usable);
 
     WorldPacket data(SMSG_AUCTION_LIST_RESULT, (4 + 4)); // +4?
     uint32 count = 0;

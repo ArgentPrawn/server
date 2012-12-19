@@ -29,7 +29,7 @@ class Player;
 class Unit;
 class WorldPacket;
 
-#define MIN_AUCTION_TIME (12*HOUR)
+#define MIN_AUCTION_TIME (2*HOUR)
 #define MAX_AUCTION_SORT 12
 #define AUCTION_SORT_REVERSED 0x10
 

@@ -356,7 +356,7 @@ void AuctionHouseMgr::LoadAuctions()
         return;
     }
 
-    result = CharacterDatabase.Query("SELECT id,houseid,itemguid,item_template,item_count,item_randompropertyid,itemowner,buyoutprice,time,buyguid,lastbid,startbid,deposit FROM auction");
+    result = CharacterDatabase.Query("SELECT id,houseid,itemguid,item_template,itemowner,buyoutprice,time,buyguid,lastbid,startbid,deposit FROM auction");
     if (!result)
     {
         BarGoLink bar(1);
@@ -431,8 +431,8 @@ void AuctionHouseMgr::LoadAuctions()
             auction->itemRandomPropertyId = pItem->GetItemRandomPropertyId();
 
             // No SQL injection (no strings)
-            CharacterDatabase.PExecute("UPDATE auction SET item_template = %u, item_count = %u, item_randompropertyid = %i WHERE itemguid = %u",
-                                       auction->itemTemplate, auction->itemCount, auction->itemRandomPropertyId, auction->itemGuidLow);
+            CharacterDatabase.PExecute("UPDATE auction SET item_template = %u WHERE itemguid = %u",
+                                       auction->itemTemplate, auction->itemRandomPropertyId, auction->itemGuidLow);
         }
 
         auction->auctionHouseEntry = sAuctionHouseStore.LookupEntry(houseid);
@@ -910,18 +910,19 @@ bool AuctionEntry::BuildAuctionInfo(WorldPacket& data) const
     data << uint32(Id);
     data << uint32(pItem->GetEntry());
 
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
-    {
-        data << uint32(pItem->GetEnchantmentId(EnchantmentSlot(i)));
-        data << uint32(pItem->GetEnchantmentDuration(EnchantmentSlot(i)));
-        data << uint32(pItem->GetEnchantmentCharges(EnchantmentSlot(i)));
-    }
+    // [-ZERO] no other infos about enchantment in 1.12 [?]
+    //for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
+    //{
+    data << uint32(pItem->GetEnchantmentId(EnchantmentSlot(PERM_ENCHANTMENT_SLOT)));
+    //    data << uint32(pItem->GetEnchantmentDuration(EnchantmentSlot(i)));
+    //    data << uint32(pItem->GetEnchantmentCharges(EnchantmentSlot(i)));
+    //}
 
     data << uint32(pItem->GetItemRandomPropertyId());       // random item property id
     data << uint32(pItem->GetItemSuffixFactor());           // SuffixFactor
     data << uint32(pItem->GetCount());                      // item->count
     data << uint32(pItem->GetSpellCharges());               // item->charge FFFFFFF
-    data << uint32(0);                                      // item flags (dynamic?) (0x04 no lockId?)
+//    data << uint32(0);                                      // item flags (dynamic?) (0x04 no lockId?)
     data << ObjectGuid(HIGHGUID_PLAYER, owner);             // Auction->owner
     data << uint32(startbid);                               // Auction->startbid (not sure if useful)
     data << uint32(bid ? GetAuctionOutBid() : 0);           // minimal outbid
@@ -955,9 +956,9 @@ void AuctionEntry::DeleteFromDB() const
 void AuctionEntry::SaveToDB() const
 {
     // No SQL injection (no strings)
-    CharacterDatabase.PExecute("INSERT INTO auction (id,houseid,itemguid,item_template,item_count,item_randompropertyid,itemowner,buyoutprice,time,buyguid,lastbid,startbid,deposit) "
-                               "VALUES ('%u', '%u', '%u', '%u', '%u', '%i', '%u', '%u', '" UI64FMTD "', '%u', '%u', '%u', '%u')",
-                               Id, auctionHouseEntry->houseId, itemGuidLow, itemTemplate, itemCount, itemRandomPropertyId, owner, buyout, (uint64)expireTime, bidder, bid, startbid, deposit);
+    CharacterDatabase.PExecute("INSERT INTO auction (id,houseid,itemguid,item_template,itemowner,buyoutprice,time,buyguid,lastbid,startbid,deposit) "
+                               "VALUES ('%u', '%u', '%u', '%u', '%i', '%u', '" UI64FMTD "', '%u', '%u', '%u', '%u')",
+                               Id, auctionHouseEntry->houseId, itemGuidLow, itemTemplate, owner, buyout, (uint64)expireTime, bidder, bid, startbid, deposit);
 }
 
 void AuctionEntry::AuctionBidWinning(Player* newbidder)
