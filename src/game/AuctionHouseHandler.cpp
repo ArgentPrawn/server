@@ -107,7 +107,7 @@ void WorldSession::SendAuctionBidderNotification(AuctionEntry* auction, bool won
     data << uint32(auction->GetAuctionOutBid());            // AuctionOutBid?
     data << uint32(auction->itemTemplate);
 
-//    data << int32(auction->itemRandomPropertyId);
+//    data << int32(auction->itemRandomPropertyId); // not send for 1.12.1
 
     Item *item = sAuctionMgr.GetAItem(auction->itemGuidLow);
     uint32 randomId = item ? item->GetItemRandomPropertyId() : 0;
@@ -482,7 +482,7 @@ void WorldSession::HandleAuctionRemoveItem(WorldPacket& recv_data)
     }
     // Return the item by mail
     std::ostringstream msgAuctionCanceledOwner;
-    msgAuctionCanceledOwner << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_CANCELED;
+    msgAuctionCanceledOwner << auction->itemTemplate << ":0:" << AUCTION_CANCELED;
 
     // item will deleted or added to received mail list
     MailDraft(msgAuctionCanceledOwner.str())

@@ -131,7 +131,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction)
     if (bidder || bidder_accId)
     {
         std::ostringstream msgAuctionWonSubject;
-        msgAuctionWonSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_WON;
+        msgAuctionWonSubject << auction->itemTemplate << ":0:" << AUCTION_WON;
 
         std::ostringstream msgAuctionWonBody;
         msgAuctionWonBody.width(16);
@@ -173,7 +173,7 @@ void AuctionHouseMgr::SendAuctionSalePendingMail(AuctionEntry* auction)
     if (owner || owner_guid && sObjectMgr.GetPlayerAccountIdByGUID(owner_guid))
     {
         std::ostringstream msgAuctionSalePendingSubject;
-        msgAuctionSalePendingSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_SALE_PENDING;
+        msgAuctionSalePendingSubject << auction->itemTemplate << ":0:" << AUCTION_SALE_PENDING;
 
         std::ostringstream msgAuctionSalePendingBody;
         uint32 auctionCut = auction->GetAuctionCut();
@@ -207,7 +207,7 @@ void AuctionHouseMgr::SendAuctionSuccessfulMail(AuctionEntry* auction)
     if (owner || owner_accId)
     {
         std::ostringstream msgAuctionSuccessfulSubject;
-        msgAuctionSuccessfulSubject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_SUCCESSFUL;
+        msgAuctionSuccessfulSubject << auction->itemTemplate << ":0:" << AUCTION_SUCCESSFUL;
 
         std::ostringstream auctionSuccessfulBody;
         uint32 auctionCut = auction->GetAuctionCut();
@@ -255,7 +255,7 @@ void AuctionHouseMgr::SendAuctionExpiredMail(AuctionEntry* auction)
     if (owner || owner_accId)
     {
         std::ostringstream subject;
-        subject << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_EXPIRED;
+        subject << auction->itemTemplate << ":0:" << AUCTION_EXPIRED;
 
         if (owner)
             owner->GetSession()->SendAuctionOwnerNotification(auction, false);
@@ -382,10 +382,10 @@ void AuctionHouseMgr::LoadAuctions()
         uint32 houseid  = fields[1].GetUInt32();
         auction->itemGuidLow = fields[2].GetUInt32();
         auction->itemTemplate = fields[3].GetUInt32();
-        auction->itemCount = fields[4].GetUInt32();
-        auction->itemRandomPropertyId = fields[5].GetUInt32();
+//        auction->itemCount = fields[4].GetUInt32();
+//        auction->itemRandomPropertyId = fields[5].GetUInt32();
 
-        auction->owner = fields[6].GetUInt32();
+        auction->owner = fields[4].GetUInt32();
 
         if (auction->owner)
         {
@@ -402,12 +402,12 @@ void AuctionHouseMgr::LoadAuctions()
             auction->ownerName = plWName;
         }
 
-        auction->buyout = fields[7].GetUInt32();
-        auction->expireTime = time_t(fields[8].GetUInt64());
-        auction->bidder = fields[9].GetUInt32();
-        auction->bid = fields[10].GetUInt32();
-        auction->startbid = fields[11].GetUInt32();
-        auction->deposit = fields[12].GetUInt32();
+        auction->buyout = fields[5].GetUInt32();
+        auction->expireTime = time_t(fields[6].GetUInt64());
+        auction->bidder = fields[7].GetUInt32();
+        auction->bid = fields[8].GetUInt32();
+        auction->startbid = fields[9].GetUInt32();
+        auction->deposit = fields[10].GetUInt32();
         auction->auctionHouseEntry = NULL;                  // init later
 
         // check if sold item exists for guid
@@ -444,7 +444,7 @@ void AuctionHouseMgr::LoadAuctions()
 
             // Attempt send item back to owner
             std::ostringstream msgAuctionCanceledOwner;
-            msgAuctionCanceledOwner << auction->itemTemplate << ":" << auction->itemRandomPropertyId << ":" << AUCTION_CANCELED;
+            msgAuctionCanceledOwner << auction->itemTemplate << ":0:" << AUCTION_CANCELED;
 
             if (auction->itemGuidLow)
             {
@@ -963,7 +963,7 @@ void AuctionEntry::SaveToDB() const
 
 void AuctionEntry::AuctionBidWinning(Player* newbidder)
 {
-    sAuctionMgr.SendAuctionSalePendingMail(this);
+//    sAuctionMgr.SendAuctionSalePendingMail(this);  // not done on 1.12.1
     sAuctionMgr.SendAuctionSuccessfulMail(this);
     sAuctionMgr.SendAuctionWonMail(this);
 
